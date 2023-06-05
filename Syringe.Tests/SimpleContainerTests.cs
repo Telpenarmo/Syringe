@@ -81,4 +81,16 @@ public class SimpleContainerTests
 
         Assert.Same(list, resolved);
     }
+
+    [Fact]
+    public void Registering_the_same_type_twice_overrides_the_previous_registration()
+    {
+        SimpleContainer container = new();
+        List<int> list1 = new();
+        container.RegisterInstance(list1);
+        List<int> list2 = new();
+        container.RegisterInstance(list2);
+
+        Assert.Same(list2, container.Resolve<List<int>>());
+    }
 }

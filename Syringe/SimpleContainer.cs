@@ -26,7 +26,7 @@ public class SimpleContainer
             Lazy<TTo> lazy = new(factory);
             factory = () => lazy.Value;
         }
-        factories.Add(typeof(TFrom), () => factory()!);
+        factories[typeof(TFrom)] = () => factory()!;
     }
 
     public T Resolve<T>()
