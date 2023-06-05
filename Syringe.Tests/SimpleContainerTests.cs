@@ -69,4 +69,16 @@ public class SimpleContainerTests
 
         Assert.Single(x);
     }
+
+    [Fact]
+    public void Resoling_Type_Registered_As_Instance_Returns_Same_Instance()
+    {
+        SimpleContainer container = new();
+        List<int> list = new();
+        container.RegisterInstance(list);
+
+        List<int> resolved = container.Resolve<List<int>>();
+
+        Assert.Same(list, resolved);
+    }
 }

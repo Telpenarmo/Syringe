@@ -14,6 +14,11 @@ public class SimpleContainer
         RegisterType<TFrom, TTo>(() => new TTo(), singleton);
     }
 
+    public void RegisterInstance<T>(T instance)
+    {
+        RegisterType<T, T>(() => instance, false);
+    }
+
     public void RegisterType<TFrom, TTo>(Func<TTo> factory, bool singleton = false) where TTo : TFrom
     {
         if (singleton)
@@ -26,7 +31,7 @@ public class SimpleContainer
 
     public T Resolve<T>()
     {
-        return factories.TryGetValue(typeof(T), out var factory)
+        return factories.TryGetValue(typeof(T), out Func<object>? factory)
             ? (T)factory()
             : throw new InvalidOperationException($"No factory for {typeof(T)}");
     }
