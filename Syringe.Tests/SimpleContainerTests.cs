@@ -105,6 +105,14 @@ public class SimpleContainerTests
         Assert.NotNull(dependent);
         Assert.NotNull(dependent.Dependency);
     }
+
+    [Fact]
+    public void Resolving_Type_With_Circular_Dependencies_Throws()
+    {
+        SimpleContainer container = new();
+        Assert.Throws<InvalidOperationException>(() => container.RegisterType<A>());
+    }
+
 }
 
 internal class Dependent
@@ -119,4 +127,31 @@ internal class Dependent
 
 internal class Dependency
 {
+}
+
+internal class A
+{
+    public B B { get; }
+    public A(B b)
+    {
+        B = b;
+    }
+}
+
+internal class B
+{
+    public C C { get; }
+    public B(C c)
+    {
+        C = c;
+    }
+}
+
+internal class C
+{
+    public A A { get; }
+    public C(A a)
+    {
+        A = a;
+    }
 }
