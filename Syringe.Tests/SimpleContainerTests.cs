@@ -93,4 +93,30 @@ public class SimpleContainerTests
 
         Assert.Same(list2, container.Resolve<List<int>>());
     }
+
+    [Fact]
+    public void Resolving_Type_With_Dependencies_Returns_Instance()
+    {
+        SimpleContainer container = new();
+        container.RegisterType<Dependent>();
+
+        var dependent = container.Resolve<Dependent>();
+
+        Assert.NotNull(dependent);
+        Assert.NotNull(dependent.Dependency);
+    }
+}
+
+internal class Dependent
+{
+    public Dependency? Dependency { get; }
+
+    public Dependent(Dependency dependency)
+    {
+        Dependency = dependency;
+    }
+}
+
+internal class Dependency
+{
 }
