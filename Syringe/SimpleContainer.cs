@@ -5,11 +5,11 @@ namespace Syringe;
 public class SimpleContainer
 {
     private readonly Dictionary<Type, Func<object>> factories = new();
-    private readonly IConstructorsProvidingStrategy constructorsProvidingStrategy;
+    internal readonly FactoriesResolver factoriesResolver;
 
     public SimpleContainer(IConstructorsProvidingStrategy constructorsProvidingStrategy)
     {
-        this.constructorsProvidingStrategy = constructorsProvidingStrategy;
+        factoriesResolver = new FactoriesResolver(factories, constructorsProvidingStrategy);
     }
 
     public SimpleContainer() : this(new ConstructorsProvidingStrategy())
@@ -23,7 +23,7 @@ public class SimpleContainer
 
     public void RegisterType<TFrom, TTo>(bool singleton = false) where TTo : TFrom
     {
-        var factory = FindConstructor(typeof(TFrom));
+        var factory = factoriesResolver.FindFactory(typeof(TFrom));
         if (factory is null)
             throw new InvalidOperationException($"No constructor for {typeof(TFrom)}");
         RegisterType<TFrom, TTo>(() => (TTo)factory(), singleton);
@@ -49,51 +49,5 @@ public class SimpleContainer
         return factories.TryGetValue(typeof(T), out Func<object>? factory)
             ? (T)factory()
             : throw new InvalidOperationException($"No factory for {typeof(T)}");
-    }
-
-    private Func<object>? FindConstructor(Type type, Stack<Type>? stack = null)
-    {
-        if (type.IsAbstract)
-            return null;
-
-        if (factories.TryGetValue(type, out Func<object>? factory))
-            return factory;
-
-        if (stack is null)
-            stack = new Stack<Type>();
-
-        IEnumerable<ConstructorInfo> constructors = constructorsProvidingStrategy.GetConstructors(type);
-
-        object[]? args = null;
-
-        var constructor = constructors.FirstOrDefault(constructor =>
-        {
-            ParameterInfo[] parameters = constructor.GetParameters();
-            args = new object[parameters.Length];
-
-            return Enumerable.Range(0, parameters.Length).All(i =>
-            {
-                Type parameterType = parameters[i].ParameterType;
-
-                if (stack.Contains(parameterType))
-                    throw new InvalidOperationException($"Circular dependency detected: {string.Join(" -> ", stack)} -> {type}");
-
-                stack.Push(parameterType);
-                Func<object>? parameterFactory = FindConstructor(parameterType, stack);
-                stack.Pop();
-
-                if (parameterFactory is null)
-                    return false;
-                args[i] = parameterFactory();
-                return true;
-            });
-        });
-
-        if (constructor is null)
-            return null;
-
-        factory = () => constructor.Invoke(args);
-        factories[type] = factory;
-        return factory;
     }
 }
