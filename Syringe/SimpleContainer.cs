@@ -5,6 +5,16 @@ namespace Syringe;
 public class SimpleContainer
 {
     private readonly Dictionary<Type, Func<object>> factories = new();
+    private readonly IConstructorsProvidingStrategy constructorsProvidingStrategy;
+
+    public SimpleContainer(IConstructorsProvidingStrategy constructorsProvidingStrategy)
+    {
+        this.constructorsProvidingStrategy = constructorsProvidingStrategy;
+    }
+
+    public SimpleContainer() : this(new ConstructorsProvidingStrategy())
+    {
+    }
 
     public void RegisterType<T>(bool singleton = false)
     {
@@ -41,13 +51,6 @@ public class SimpleContainer
             : throw new InvalidOperationException($"No factory for {typeof(T)}");
     }
 
-    private IEnumerable<ConstructorInfo> GetSortedConstructors(Type type)
-    {
-        return type.GetConstructors()
-            .OrderBy(c => c.GetCustomAttribute<DependencyConstructorAttribute>() is null)
-            .OrderByDescending(c => c.GetParameters().Length);
-    }
-
     private Func<object>? FindConstructor(Type type, Stack<Type>? stack = null)
     {
         if (type.IsAbstract)
@@ -59,7 +62,7 @@ public class SimpleContainer
         if (stack is null)
             stack = new Stack<Type>();
 
-        var constructors = GetSortedConstructors(type);
+        IEnumerable<ConstructorInfo> constructors = constructorsProvidingStrategy.GetConstructors(type);
 
         object[]? args = null;
 
