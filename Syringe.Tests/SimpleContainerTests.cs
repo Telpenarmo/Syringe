@@ -113,6 +113,17 @@ public class SimpleContainerTests
         Assert.Throws<InvalidOperationException>(() => container.RegisterType<A>());
     }
 
+    [Fact]
+    public void With_multiple_constructors_chooses_by_attribute_and_parameters_count()
+    {
+        SimpleContainer container = new();
+        container.RegisterInstance("");
+        container.RegisterInstance(0);
+
+        // should not throw
+        container.RegisterType<ManyConstructors>();
+    }
+
 }
 
 internal class Dependent
@@ -154,4 +165,27 @@ internal class C
     {
         A = a;
     }
+}
+
+internal class ManyConstructors
+{
+    public ManyConstructors(string s)
+    {
+        throw new Exception("Wrong constructor");
+    }
+
+    [DependencyConstructor]
+    public ManyConstructors(int x)
+    {
+        throw new Exception("Wrong constructor");
+    }
+
+    public ManyConstructors(int x, string s)
+    {
+        throw new Exception("Wrong constructor");
+    }
+
+    [DependencyConstructor]
+    public ManyConstructors(int x, int y)
+    { }
 }

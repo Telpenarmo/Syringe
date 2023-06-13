@@ -44,6 +44,7 @@ public class SimpleContainer
     private IEnumerable<ConstructorInfo> GetSortedConstructors(Type type)
     {
         return type.GetConstructors()
+            .OrderBy(c => c.GetCustomAttribute<DependencyConstructorAttribute>() is null)
             .OrderByDescending(c => c.GetParameters().Length);
     }
 
@@ -66,7 +67,7 @@ public class SimpleContainer
         {
             ParameterInfo[] parameters = constructor.GetParameters();
             args = new object[parameters.Length];
-            
+
             return Enumerable.Range(0, parameters.Length).All(i =>
             {
                 Type parameterType = parameters[i].ParameterType;
