@@ -49,4 +49,6 @@ public class SimpleContainer
             ? (T)factory()
             : throw new InvalidOperationException($"No factory for {typeof(T)}");
     }
+
+    public void Augment(object obj) => factoriesResolver.Augment(obj);
 }

@@ -4,10 +4,10 @@ namespace Syringe;
 
 internal class FactoriesResolver
 {
-    private readonly IReadOnlyDictionary<Type, Func<object>> factories;
+    private readonly Dictionary<Type, Func<object>> factories;
     private readonly IConstructorsProvidingStrategy constructorsProvidingStrategy;
 
-    public FactoriesResolver(IReadOnlyDictionary<Type, Func<object>> factories, IConstructorsProvidingStrategy constructorsProvidingStrategy)
+    public FactoriesResolver(Dictionary<Type, Func<object>> factories, IConstructorsProvidingStrategy constructorsProvidingStrategy)
     {
         this.factories = factories;
         this.constructorsProvidingStrategy = constructorsProvidingStrategy;
@@ -29,20 +29,51 @@ internal class FactoriesResolver
         {
             var argsFactories = ResolveParameters(constructor, stack);
             return (constructor, argsFactories);
-        }).FirstOrDefault<(ConstructorInfo constructor, Func<object?>[]? argsFactories)>(tuple => tuple.argsFactories is not null);
+        }).FirstOrDefault(tuple => tuple.argsFactories is not null);
 
         return constructor is null ? null
             : () =>
             {
                 var args = argsFactories!.Select(factory => factory()).ToArray();
-                return constructor.Invoke(args);
+                var obj = constructor.Invoke(args);
+                factories.TryGetValue(type, out Func<object>? oldFactory);
+                factories[type] = () => obj;
+                Augment(obj);
+                if (oldFactory is not null)
+                    factories[type] = oldFactory;
+                else
+                    factories.Remove(type);
+                return obj;
             };
+    }
+
+    private void Augment(object obj)
+    {
+        Type t = obj.GetType();
+
+        IEnumerable<MethodInfo> methods = t.GetRuntimeMethods()
+            .Where(m => m.GetCustomAttribute<DependencyAttribute>() is not null);
+
+        IEnumerable<MethodInfo> properties = t.GetRuntimeProperties()
+            .Where(p => p.CanWrite)
+            .Where(m => m.GetCustomAttribute<DependencyAttribute>() is not null)
+            .Select(p => p.SetMethod!);
+
+        var dependencies = methods.Union(properties)
+            .Select(method => (method, argsFactories: ResolveParameters(method, new Stack<Type>())))
+            .Where(tuple => tuple.argsFactories is not null);
+
+        foreach (var (method, argsFactories) in dependencies)
+        {
+            object?[] args = argsFactories!.Select(factory => factory()).ToArray();
+            _ = method.Invoke(obj, args!);
+        }
     }
 
     private Func<object?>[]? ResolveParameters(MethodBase method, Stack<Type> stack)
     {
         ParameterInfo[] parameters = method.GetParameters();
-        var args = new Func<object?>[parameters.Length];
+        Func<object?>[] args = new Func<object?>[parameters.Length];
 
         bool success = Enumerable.Range(0, parameters.Length).All(i =>
         {
@@ -54,7 +85,7 @@ internal class FactoriesResolver
 
             stack.Push(parameterType);
             Func<object>? parameterFactory = FindFactory(parameterType, stack);
-            stack.Pop();
+            _ = stack.Pop();
 
             if (parameterFactory is null)
                 return false;
