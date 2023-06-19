@@ -23,9 +23,8 @@ public class SimpleContainer
 
     public void RegisterType<TFrom, TTo>(bool singleton = false) where TTo : TFrom
     {
-        var factory = factoriesResolver.FindFactory(typeof(TFrom));
-        if (factory is null)
-            throw new InvalidOperationException($"No constructor for {typeof(TFrom)}");
+        var factory = factoriesResolver.FindFactory(typeof(TFrom))
+            ?? throw new InvalidOperationException($"No constructor for {typeof(TFrom)}");
         RegisterType<TFrom, TTo>(() => (TTo)factory(), singleton);
     }
 

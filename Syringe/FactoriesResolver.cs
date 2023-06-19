@@ -14,7 +14,7 @@ internal class FactoriesResolver
     }
 
     public Func<object>? FindFactory(Type type) => FindFactory(type, new Stack<Type>());
-    
+
     private Func<object>? FindFactory(Type type, Stack<Type> stack)
     {
         if (type.IsAbstract)
@@ -25,33 +25,44 @@ internal class FactoriesResolver
 
         IEnumerable<ConstructorInfo> constructors = constructorsProvidingStrategy.GetConstructors(type);
 
-        object[]? args = null;
-
-        var constructor = constructors.FirstOrDefault(constructor =>
+        var (constructor, argsFactories) = constructors.Select(constructor =>
         {
-            ParameterInfo[] parameters = constructor.GetParameters();
-            args = new object[parameters.Length];
-
-            return Enumerable.Range(0, parameters.Length).All(i =>
-            {
-                Type parameterType = parameters[i].ParameterType;
-
-                if (stack.Contains(parameterType))
-                    throw new InvalidOperationException($"Circular dependency detected: {string.Join(" -> ", stack)} -> {type}");
-
-                stack.Push(parameterType);
-                Func<object>? parameterFactory = FindFactory(parameterType, stack);
-                stack.Pop();
-
-                if (parameterFactory is null)
-                    return false;
-
-                args[i] = parameterFactory();
-                return true;
-            });
-        });
+            var argsFactories = ResolveParameters(constructor, stack);
+            return (constructor, argsFactories);
+        }).FirstOrDefault<(ConstructorInfo constructor, Func<object?>[]? argsFactories)>(tuple => tuple.argsFactories is not null);
 
         return constructor is null ? null
-            : () => constructor.Invoke(args);
+            : () =>
+            {
+                var args = argsFactories!.Select(factory => factory()).ToArray();
+                return constructor.Invoke(args);
+            };
+    }
+
+    private Func<object?>[]? ResolveParameters(MethodBase method, Stack<Type> stack)
+    {
+        ParameterInfo[] parameters = method.GetParameters();
+        var args = new Func<object?>[parameters.Length];
+
+        bool success = Enumerable.Range(0, parameters.Length).All(i =>
+        {
+            Type parameterType = parameters[i].ParameterType;
+
+            if (stack.Contains(parameterType))
+                throw new InvalidOperationException(
+                    $"Circular dependency detected: {string.Join(" -> ", stack)} -> {method.DeclaringType}");
+
+            stack.Push(parameterType);
+            Func<object>? parameterFactory = FindFactory(parameterType, stack);
+            stack.Pop();
+
+            if (parameterFactory is null)
+                return false;
+
+            args[i] = parameterFactory;
+            return true;
+        });
+
+        return success ? args : null;
     }
 }
