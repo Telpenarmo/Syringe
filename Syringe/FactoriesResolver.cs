@@ -47,7 +47,7 @@ internal class FactoriesResolver
             };
     }
 
-    private void Augment(object obj)
+    public void Augment(object obj)
     {
         Type t = obj.GetType();
 
