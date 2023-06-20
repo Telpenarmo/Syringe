@@ -36,13 +36,17 @@ internal class FactoriesResolver
             {
                 var args = argsFactories!.Select(factory => factory()).ToArray();
                 var obj = constructor.Invoke(args);
+
                 factories.TryGetValue(type, out Func<object>? oldFactory);
                 factories[type] = () => obj;
+
                 Augment(obj);
+
                 if (oldFactory is not null)
                     factories[type] = oldFactory;
                 else
                     factories.Remove(type);
+
                 return obj;
             };
     }

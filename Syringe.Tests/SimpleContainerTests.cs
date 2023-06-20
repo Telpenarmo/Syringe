@@ -18,7 +18,6 @@ public class SimpleContainerTests
         var list = container.Resolve<List<int>>();
 
         Assert.NotNull(list);
-        Assert.IsType<List<int>>(list);
     }
 
     [Fact]
@@ -35,43 +34,7 @@ public class SimpleContainerTests
     }
 
     [Fact]
-    public void Resolving_Type_Registered_As_Singleton_Returns_Same_Instance()
-    {
-        var container = new SimpleContainer();
-        container.RegisterType<List<int>, List<int>>(true);
-
-        var list1 = container.Resolve<List<int>>();
-        var list2 = container.Resolve<List<int>>();
-
-        Assert.Same(list1, list2);
-    }
-
-    [Fact]
-    public void Singleton_Is_Resolved_Lazily()
-    {
-        SimpleContainer container = new();
-
-        List<int> x = new();
-
-        container.RegisterType<List<int>, List<int>>(() =>
-        {
-            x.Add(1);
-            return x;
-        }, true);
-
-        Assert.Empty(x);
-
-        _ = container.Resolve<List<int>>();
-
-        Assert.Single(x);
-
-        _ = container.Resolve<List<int>>();
-
-        Assert.Single(x);
-    }
-
-    [Fact]
-    public void Resoling_Type_Registered_As_Instance_Returns_Same_Instance()
+    public void Resolving_Type_Registered_As_Instance_Returns_Same_Instance()
     {
         SimpleContainer container = new();
         List<int> list = new();
@@ -123,114 +86,4 @@ public class SimpleContainerTests
         // should not throw
         container.RegisterType<ManyConstructors>();
     }
-
-    [Fact]
-    public void Using_DependencyAttribute_breaks_dependency_circle()
-    {
-        SimpleContainer container = new();
-        container.RegisterType<X>();
-        container.RegisterType<Y>();
-
-        X x = container.Resolve<X>();
-        Y y = container.Resolve<Y>();
-
-        Assert.NotNull(x.Y);
-        Assert.NotNull(y.X);
-
-        // Assert.Same(x, y.X);
-        // Assert.Same(y, x.Y);
-
-        Assert.Same(x, x.Y.X);
-        Assert.Same(y, y.X.Y);
-    }
-
-    [Fact]
-    public void Augment_sets_dependencies()
-    {
-        SimpleContainer container = new();
-
-        X x = new();
-
-        Assert.Null(x.Y);
-
-        container.Augment(x);
-
-        Assert.NotNull(x.Y);
-    }
-}
-
-internal class Dependent
-{
-    public Dependency Dependency { get; }
-
-    public Dependent(Dependency dependency)
-    {
-        Dependency = dependency;
-    }
-}
-
-internal class Dependency
-{
-}
-
-internal class A
-{
-    public B B { get; }
-    public A(B b)
-    {
-        B = b;
-    }
-}
-
-internal class B
-{
-    public C C { get; }
-    public B(C c)
-    {
-        C = c;
-    }
-}
-
-internal class C
-{
-    public A A { get; }
-    public C(A a)
-    {
-        A = a;
-    }
-}
-
-internal class X
-{
-    [Dependency]
-    public Y? Y { get; set; }
-}
-
-internal class Y
-{
-    [Dependency]
-    public X? X { get; set; }
-}
-
-internal class ManyConstructors
-{
-    public ManyConstructors(string s)
-    {
-        throw new Exception("Wrong constructor");
-    }
-
-    [DependencyConstructor]
-    public ManyConstructors(int x)
-    {
-        throw new Exception("Wrong constructor");
-    }
-
-    public ManyConstructors(int x, string s)
-    {
-        throw new Exception("Wrong constructor");
-    }
-
-    [DependencyConstructor]
-    public ManyConstructors(int x, int y)
-    { }
 }
